@@ -1,293 +1,102 @@
-# EmotionX-Hybrid: Multi-Label Emotion Classification
+![EmotionX — conceptual project header](docs/assets/banner.svg)
 
-## Project Overview
+# EmotionX
 
-This project implements **EmotionX-Hybrid**, a multi-label emotion classification system that predicts 27 emotions from text using a hybrid deep learning architecture combining Transformer encoders with BiLSTM and attention mechanisms.
+![Python](docs/assets/badges/python.svg) ![PyTorch](docs/assets/badges/pytorch.svg) ![Transformers](docs/assets/badges/transformers.svg) ![scikit-learn](docs/assets/badges/scikit-learn.svg) ![Gradio](docs/assets/badges/gradio.svg)
 
-**Key Features:**
-- Transformer backbone (DeBERTa-v3-large)
-- Bidirectional LSTM for sequential modeling
-- TF-IDF gating for token importance weighting
-- Multi-head self-attention for context aggregation
-- Feature fusion for final classification
-- Focal loss for handling class imbalance
+**Multi-label emotion classification with a transformer encoder, IDF gating, bidirectional LSTM, and attention-based feature fusion.**
 
-**Dataset:** GoEmotions (Google) - 58K Reddit comments labeled with 27 emotions
+[Model](#model-architecture) · [Saved results](#saved-results) · [Reproduction](#setup-and-artifacts) · [Limitations](#research-boundaries)
 
----
+## Research question
 
-## Project Structure
+How can contextual transformer features be combined with sequential and token-importance representations for fine-grained emotion classification? EmotionX implements a hybrid model for 27 emotion labels using GoEmotions, with separate training, evaluation, visualization, and Gradio demo modules.
 
-```
-EmotionX_FinalProject/
-│
-├── main.py                      # Main entry point for all operations
-├── requirements.txt             # Python dependencies
-├── README.md                    # This documentation file
-│
-├── src/                         # Source code modules
-│   ├── __init__.py              # Package initialization
-│   ├── config.py                # Configuration and hyperparameters
-│   ├── model.py                 # EmotionXHybrid model architecture
-│   ├── data.py                  # Data loading and preprocessing
-│   ├── utils.py                 # Utility functions (save/load/predict)
-│   ├── visualization.py         # Plotting and visualization functions
-│   ├── train.py                 # Training pipeline
-│   ├── evaluate.py              # Evaluation pipeline
-│   └── demo.py                  # Interactive Gradio demo
-│
-├── models/                      # Model storage
-│   ├── pretrained/              # Pre-trained model files (provided)
-│   │   ├── model_state.pt       # Model weights
-│   │   ├── train_config.json    # Training configuration
-│   │   ├── labels.json          # Emotion label names
-│   │   ├── token_to_idf.json    # TF-IDF vocabulary
-│   │   └── tokenizer files...   # HuggingFace tokenizer
-│   │
-│   └── trained/                 # Newly trained models (auto-generated)
-│
-├── data/                        # Data directory
-│   └── README.txt               # Data loading instructions
-│
-└── results/                     # Output directory (auto-generated)
-    ├── classification_report.txt
-    ├── confusion_matrices.png
-    ├── precision_recall_curves.png
-    ├── per_label_f1_scores.png
-    ├── label_distribution.png
-    └── training_loss.png
+This is an implemented research project. The architecture's added complexity is not established as an improvement over a transformer-only baseline by the committed evidence.
+
+## Model architecture
+
+![EmotionX model architecture: transformer, IDF gating, BiLSTM, attention and classifier](docs/assets/architecture.svg)
+
+```mermaid
+flowchart LR
+    T[Text and tokenizer] --> B[Transformer backbone]
+    B --> G[IDF-gated token representations]
+    G --> L[Bidirectional LSTM]
+    L --> A[Multi-head attention]
+    B --> C[CLS representation]
+    L --> P[Max pooling]
+    A --> M[Mean pooling]
+    C --> F[Feature fusion]
+    P --> F
+    M --> F
+    F --> O[27-label classifier]
 ```
 
----
+The configured backbone is DeBERTa-v3-large; the training code can fall back to other backbones. Record the actual selected backbone for any reproduced run. IDF values are fitted to training text, and the classifier uses focal loss.
 
-## Environment Setup
+## Implemented components
 
-### Step 1: Create Virtual Environment
+| Module | Responsibility |
+|---|---|
+| [src/data.py](src/data.py) | Dataset loading, label conversion, split preparation, tokenizer and IDF vocabulary |
+| [src/model.py](src/model.py) | Hybrid model, pooling, focal loss, optional contrastive objective |
+| [src/train.py](src/train.py) | Training, validation and checkpoint selection |
+| [src/evaluate.py](src/evaluate.py) | Evaluation and saved reports |
+| [src/demo.py](src/demo.py) | Interactive prediction interface |
+| [src/config.py](src/config.py) | Model and training configuration |
 
-Unzip the code 
-**Windows (PowerShell):**
-```powershell
-cd EmotionX_FinalProject
-python -m venv venv
-.\venv\Scripts\Activate.ps1
-```
+## Saved results
 
-**Windows (Command Prompt):**
-```cmd
-cd EmotionX_FinalProject
-python -m venv venv
-venv\Scripts\activate
-```
+The committed [classification report](results/classification_report.txt) records:
 
-**macOS / Linux:**
-```bash
-cd EmotionX_FinalProject
-python3 -m venv venv
-source venv/bin/activate
-```
+| Metric | Saved report value |
+|---|---:|
+| Micro-F1 | 0.5787 |
+| Macro-F1 | 0.5218 |
+| Test examples | 5,427 |
 
-### Step 2: Install Dependencies
+**These are stored project results, not independently reproduced measurements.** The corresponding trained artifact set is absent from this repository. No baseline comparison or ablation result is implied.
+
+![Existing per-label F1 figure from the project results](results/per_label_f1_scores.png)
+
+<details>
+<summary>View existing confusion-matrix visualizations</summary>
+
+![Existing emotion-class confusion matrices](results/confusion_matrices.png)
+
+</details>
+
+## Setup and artifacts
 
 ```bash
+python -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
----
+Dependencies are minimum versions, not a locked reproduction environment. Dataset/backbone downloads require network access; tokenizer prerequisites and resource needs depend on the chosen backbone.
 
-## How to Run
+**Pretrained project weights are not included.** Default evaluation/demo expects a complete compatible set under `models/pretrained/`: model state, training config, labels, token-to-IDF vocabulary, and tokenizer files. No public download URL is currently supplied.
 
-### Quick Test (Recommended First)
-
-Test with a small subset (100 samples) to verify everything works:
-
-```bash
-python main.py --mode evaluate --quick-test
-```
-
-### Full Evaluation
-
-Evaluate the pre-trained model on the complete test set:
-
-```bash
-python main.py --mode evaluate
-```
-**Evaluation Outputs (saved to `results/`):**
-
-| File | Description |
-|------|-------------|
-| `classification_report.txt` | Per-label precision, recall, F1 scores |
-| `confusion_matrices.png` | Confusion matrices for top 6 emotions |
-| `precision_recall_curves.png` | PR curves for top 5 emotions |
-| `per_label_f1_scores.png` | F1 bar chart for all 27 labels |
-| `label_distribution.png` | Label frequency in test set |
-| `training_loss.png` | Training loss over epochs (after training) |
-
-
-### Interactive Demo
-
-Launch a web interface for testing predictions:
-```bash
-python main.py --mode demo
-```
-Browser will be opening up with UI if it won't open, try to open below url 
-http://127.0.0.1:7860
-
-### If you want to Train New Model (Takes 15-40 hrs on CPU and 1hr on GPU NVIDIA A100 High RAM )
-
-Train a new model from scratch (saves to `models/trained/`):
+To train your own model, after reviewing compute/storage requirements:
 
 ```bash
 python main.py --mode train
-```
-
-**Note:** Training takes ~1 hour on GPU, 15-40 hours on CPU.
-
-### Use Newly Trained Model
-
-After training, use `--use-trained` flag:
-
-```bash
+# After successful training writes models/trained/:
 python main.py --mode evaluate --use-trained
 python main.py --mode demo --use-trained
 ```
 
----
+`--quick-test` evaluates a small sample; it is not a replacement for an automated test suite. Avoid treating model training as a quick installation check.
 
-## Input and Output Formats
+## Research boundaries
 
-### Input
+- Padding is not excluded from all pooling operations; batch-length sensitivity needs investigation.
+- CPU best-checkpoint snapshots use `.cpu()` without cloning and may share live tensor storage.
+- The official dataset validation split is not used directly; code creates a validation subset from the training split. The neutral label is excluded from outputs.
+- No checked-in automated tests or independently repeated hardware/runtime benchmarks were established by the audit.
 
-**Text Input:** Plain text strings (English)
-- Example: `"I am very happy with how things turned out today!"`
+## Data and references
 
-**Data Format:** The GoEmotions dataset is automatically downloaded from HuggingFace Datasets.
-
-### Output
-
-**Prediction Output:**
-```python
-{
-    "text": "I am very happy!",
-    "predicted_labels": ["joy", "optimism"],      # Labels above 0.5 threshold
-    "probabilities": [0.12, 0.89, ...],           # All 27 probabilities
-    "top3": [
-        {"label": "joy", "score": 0.89},
-        {"label": "optimism", "score": 0.72},
-        {"label": "excitement", "score": 0.45}
-    ]
-}
-```
-
-
----
-
-## Dependencies
-
-All dependencies are listed in `requirements.txt`:
-
-| Package | Version | Purpose |
-|---------|---------|---------|
-| torch | >=1.10.0 | Deep learning framework |
-| transformers | >=4.20.0 | Pre-trained Transformer models |
-| datasets | >=2.0.0 | GoEmotions dataset loading |
-| scikit-learn | >=1.0.0 | Metrics and evaluation |
-| matplotlib | >=3.5.0 | Visualization |
-| seaborn | >=0.11.0 | Enhanced plots |
-| tqdm | >=4.60.0 | Progress bars |
-| gradio | >=3.0.0 | Web demo interface |
-| numpy | >=1.20.0 | Numerical operations |
-
----
-
-## Correspondence to Final Report
-
-| Report Section | Code Location |
-|----------------|---------------|
-| Model Architecture | `src/model.py` - `EmotionXHybridModel` class |
-| Training Procedure | `src/train.py` - `train_model()` function |
-| Focal Loss | `src/model.py` - `focal_loss()` function |
-| TF-IDF Gating | `src/model.py` - `compute_tfidf_gates()` method |
-| Data Preprocessing | `src/data.py` - `prepare_splits()` function |
-| Evaluation Metrics | `src/evaluate.py` - F1 scores, classification report |
-| Results Figures | `src/visualization.py` - All plotting functions |
-| Hyperparameters | `src/config.py` - `TrainConfig` dataclass |
-
----
-
-## Model Architecture
-
-```
-Input Text
-    │
-    ▼
-┌─────────────────────────────────────┐
-│  DeBERTa-v3-large                   │  ← Transformer Backbone
-│  (Pre-trained, fine-tuned)          │
-└─────────────────────────────────────┘
-    │
-    ▼
-┌─────────────────────────────────────┐
-│         TF-IDF Gating               │  ← Token importance weighting
-│  (Learned from training corpus)     │
-└─────────────────────────────────────┘
-    │
-    ▼
-┌─────────────────────────────────────┐
-│    Bidirectional LSTM (256 units)   │  ← Sequential modeling
-└─────────────────────────────────────┘
-    │
-    ▼
-┌─────────────────────────────────────┐
-│   Multi-Head Attention (4 heads)    │  ← Context aggregation
-└─────────────────────────────────────┘
-    │
-    ▼
-┌─────────────────────────────────────┐
-│   Feature Fusion                    │  ← Concatenate: CLS + LSTM + Attn
-│   (CLS pooling + Max pool + Mean)   │
-└─────────────────────────────────────┘
-    │
-    ▼
-┌─────────────────────────────────────┐
-│   Classifier (27 sigmoid outputs)   │  ← Multi-label prediction
-└─────────────────────────────────────┘
-```
-
----
-
-## Hyperparameters
-
-| Parameter | Value | Description |
-|-----------|-------|-------------|
-| Backbone | DeBERTa-v3-large | Pre-trained transformer |
-| Max Length | 96 | Maximum sequence length |
-| Batch Size | 32 | Training batch size |
-| Learning Rate | 2e-5 | AdamW optimizer |
-| Epochs | 5 | Training epochs |
-| LSTM Hidden | 256 | BiLSTM hidden size |
-| Attention Heads | 4 | Multi-head attention |
-| Dropout | 0.2 | Regularization |
-| Focal Loss α | 0.25 | Class balance weight |
-| Focal Loss γ | 2.0 | Focus on hard examples |
-
----
-
-## Results
-
-| Metric | Score |
-|--------|-------|
-| Micro-F1 | 0.5785 |
-| Macro-F1 | 0.5216 |
-
-**Training Time:** ~27 minutes/epoch on NVIDIA T4 GPU
-
----
-
-## Emotion Labels (27)
-
-admiration, amusement, anger, annoyance, approval, caring, confusion,
-curiosity, desire, disappointment, disapproval, disgust, embarrassment,
-excitement, fear, gratitude, grief, joy, love, nervousness, optimism,
-pride, realization, relief, remorse, sadness, surprise
-
-
+Data is loaded through Hugging Face Datasets. See [data notes](data/README.txt), [result notes](results/README.txt), and the GoEmotions paper: Demszky et al., *GoEmotions: A Dataset of Fine-Grained Emotions*, ACL 2020. Respect the dataset and selected backbone's licenses and usage conditions.
