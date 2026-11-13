@@ -22,9 +22,67 @@ Language can express overlapping emotional signals that are not well represented
 
 ## System architecture
 
-![EmotionX architecture — system components and principal workflows](docs/architecture-overview.svg)
+```mermaid
+flowchart TB
+    Entry["main.py<br/>train • evaluate • demo modes"]
 
-The diagram organizes the major flows into aligned lanes to make their responsibilities and handoffs clear. It is a high-level view; individual modules may also communicate across lanes.
+    subgraph Data["Data and text preparation — src/data.py"]
+        GoEmotions["GoEmotions dataset"]
+        Tokenizer["Transformer tokenizer<br/>input IDs and attention mask"]
+        Labels["Multi-label target vectors"]
+        IDF["Token-to-IDF map"]
+        GoEmotions --> Tokenizer
+        GoEmotions --> Labels
+        GoEmotions --> IDF
+    end
+
+    subgraph Model["EmotionXHybridModel — src/model.py"]
+        Backbone["AutoModel transformer backbone"]
+        CLS["CLS representation"]
+        Gates["IDF gates applied to token embeddings"]
+        BiLSTM["Bidirectional LSTM"]
+        LSTMPool["Sequence max pool"]
+        Attention["Multi-head self-attention"]
+        AttnPool["Attention mean pool"]
+        Fusion["Concatenate CLS + LSTM pool + attention pool"]
+        Dropout["Dropout"]
+        Classifier["Multi-label classifier logits"]
+        Projection["Projection head"]
+
+        Tokenizer --> Backbone
+        Backbone --> CLS
+        Backbone --> Gates
+        IDF --> Gates
+        Gates --> BiLSTM
+        BiLSTM --> LSTMPool
+        BiLSTM --> Attention --> AttnPool
+        CLS --> Fusion
+        LSTMPool --> Fusion
+        AttnPool --> Fusion
+        Fusion --> Dropout --> Classifier
+        Fusion --> Projection
+    end
+
+    subgraph Workflows["Runtime workflows"]
+        Train["src/train.py<br/>focal and supervised contrastive objectives"]
+        Evaluate["src/evaluate.py"]
+        Demo["src/demo.py<br/>Gradio interface"]
+        Checkpoints[("model checkpoint + tokenizer / label artifacts")]
+        Train --> Checkpoints
+        Checkpoints --> Evaluate
+        Checkpoints --> Demo
+    end
+
+    Entry --> Train
+    Entry --> Evaluate
+    Entry --> Demo
+    Labels --> Train
+    Classifier --> Train
+    Projection --> Train
+    Classifier --> Evaluate
+    Classifier --> Demo
+```
+
 
 ### How it works
 
